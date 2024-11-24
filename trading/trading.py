@@ -2,7 +2,6 @@ import krakenex
 
 api = krakenex.API()
 api.key = 'w3if4ZjPEKdgCVsj7J/KVRgkSKhAhYBcJJrrp8gXTfrRdlylAVafK85F'
-api.secret = 'zYOQHH+XVOXsHGddoDKEbUL8JkB3mvHdRjZSP4QLqRV5wkwDZ4iELkfXOwneDWfTTBrHYQkoc8hgLtS1u+rYlg=='
 
 response = api.query_public('Ticker', {'pair': 'XXBTZUSD'})
 print(response['result'])
