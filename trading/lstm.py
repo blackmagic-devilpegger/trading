@@ -5,7 +5,7 @@ api.key = 'w3if4ZjPEKdgCVsj7J/KVRgkSKhAhYBcJJrrp8gXTfrRdlylAVafK85F'
 
 # API fuction call
 response = api.query_public('Ticker', {'pair': 'XXBTZUSD'})
-print(response['result'])
+    # print(response['result'])
 
 import requests
 import time
@@ -15,7 +15,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
 
 # 1. Fetch historical Bitcoin data from Kraken API
 url = "https://api.kraken.com/0/public/OHLC"
@@ -24,7 +23,6 @@ params = {
     'interval': 60,      # Time interval (e.g., 60 minutes)
     'since': int(time.time()) - 60 * 60 * 24 * 90  # Data from the last 90 days
 }
-
 response = requests.get(url, params=params)
 data = response.json()
 
@@ -38,6 +36,7 @@ if len(data['error']) == 0:  # No errors
 else:
     print("Error:", data['error'])
     exit()
+
 
 # 2. Prepare data for LSTM
 df = df[['time', 'close']]
@@ -87,44 +86,71 @@ class BitcoinLSTM(nn.Module):
         return output
 
 input_size = 1  # Only the 'close' feature
-hidden_size = 64 # verdoppelung - 2 USD unterschied
+hidden_size = 64 # 128 - 2 USD difference
 num_layers = 2
 model = BitcoinLSTM(input_size, hidden_size, num_layers)
+
 
 # 4. Define loss function and optimizer
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# 5. Train the model
-loss_vals = []
+# 5. Train the model with separate training and validation loss calculation
+train_loss_values = []
+val_loss_values = []
 num_epochs = 100
+batch_size = 32  # Größe der Batches
+
 for epoch in range(num_epochs):
-    model.train()
-    optimizer.zero_grad()
+    epoch_loss = 0
+    model.train()  # Modell in den Trainingsmodus setzen
 
-    # Forward pass
-    outputs = model(X_train)
-    loss = criterion(outputs.squeeze(), y_train)
+    # Training in Batches
+    for i in range(0, len(X_train), batch_size):
+        X_batch = X_train[i:i + batch_size]
+        y_batch = y_train[i:i + batch_size]
 
-    # Backward pass and optimization
-    loss.backward()
-    optimizer.step()
+        optimizer.zero_grad()  # Gradienten zurücksetzen
+        outputs = model(X_batch)  # Vorhersagen
+        loss = criterion(outputs.squeeze(), y_batch)  # Verlust berechnen
+        loss.backward()  # Backpropagation
+        optimizer.step()  # Gewichte aktualisieren
 
-    # Store the loss for visualization
-    loss_vals.append(loss.item())
+        # Summiere den Batch-Verlust für die aktuelle Epoche
+        epoch_loss += loss.item()
 
-    if (epoch + 1) % 10 == 0:
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+    # Berechne den durchschnittlichen Trainingsverlust für die Epoche
+    train_loss_epoch = epoch_loss / len(X_train)
+    train_loss_values.append(train_loss_epoch)
 
-# 6. Plot training loss
+    # Validierung
+    model.eval()  # Modell in den Evaluierungsmodus setzen
+    val_loss = 0
+    with torch.no_grad():
+        for i in range(0, len(X_val), batch_size):
+            X_val_batch = X_val[i:i + batch_size]
+            y_val_batch = y_val[i:i + batch_size]
+            outputs = model(X_val_batch)  # Vorhersagen
+            val_loss += criterion(outputs.squeeze(), y_val_batch).item()  # Validierungsverlust summieren
+
+    # Berechne den durchschnittlichen Validierungsverlust für die Epoche
+    val_loss_epoch = val_loss / len(X_val)
+    val_loss_values.append(val_loss_epoch)
+
+    # Ausgabe der Verluste für die aktuelle Epoche
+    print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {train_loss_epoch:.6f}, Validation Loss: {val_loss_epoch:.6f}")
+
+# 6. Plot training and validation losses
 import matplotlib.pyplot as plt
 plt.figure(figsize=(10, 6))
-plt.plot(range(num_epochs), loss_vals, label="Training Loss")
+plt.plot(range(num_epochs), train_loss_values, label="Training Loss", color='blue')
+plt.plot(range(num_epochs), val_loss_values, label="Validation Loss", color='orange')
 plt.xlabel("Epochs")
 plt.ylabel("Loss")
-plt.title("Training Loss Over Epochs")
+plt.title("Training and Validation Loss Over Epochs")
 plt.legend()
 plt.show()
+
 
 # 7. Validate the model
 model.eval()
@@ -134,23 +160,22 @@ with torch.no_grad():
     print(f"Validation Loss: {val_loss.item():.4f}")
 
 
-
-# 8. Make predictions
+# 8. Make predictions and visualize
 model.eval()
 with torch.no_grad():
-    predictions = model(X_val).squeeze()  # Vorhersagen für die Validierungsdaten
-    predictions = predictions.numpy()  # Umwandlung in NumPy für Rückskalierung
-    y_val_np = y_val.numpy()  # Zielwerte als NumPy-Array für Vergleich
+    predictions = model(X_val).squeeze()
+    predictions = predictions.numpy()
+    y_val_np = y_val.numpy()
 
-# Rückskalierung der Vorhersagen
+# Rescale the predictions and actual values
 predictions_rescaled = scaler.inverse_transform(predictions.reshape(-1, 1)).flatten()
 y_val_rescaled = scaler.inverse_transform(y_val_np.reshape(-1, 1)).flatten()
 
-# Berechnung des durchschnittlichen Abweichung (Mean Absolute Error)
+# Calculate the Mean Absolute Error (MAE)
 mae = np.mean(np.abs(predictions_rescaled - y_val_rescaled))
 print(f"Mean Absolute Error (MAE): {mae:.4f}")
 
-# Visualisierung der Vorhersagen
+# Plot the predictions vs. actual values
 import matplotlib.pyplot as plt
 
 plt.figure(figsize=(12, 6))
@@ -161,5 +186,4 @@ plt.xlabel("Time Steps")
 plt.ylabel("Price (USD)")
 plt.legend()
 plt.show()
-
 
