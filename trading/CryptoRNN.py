@@ -82,18 +82,20 @@ class CryptoRNN:
 
         print(f"Trainingsdaten: {len(self.X_train)} Sequenzen, Validierungsdaten: {len(self.X_val)} Sequenzen")
 
-    def create_model(self, input_size, hidden_size, output_size):
+    def create_model(self, input_size, hidden_size, output_size, num_layers=1):
         """
         Erstellt das RNN-Modell.
         """
         class RNNModel(nn.Module):
             def __init__(self, input_size, hidden_size, output_size):
                 super(RNNModel, self).__init__()
-                self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)        #RNN-Layer
+                self.num_layers = num_layers  # Anzahl der Schichten speichern
+                self.hidden_size = hidden_size  # Versteckte Einheiten speichern
+                self.rnn = nn.RNN(input_size, hidden_size, num_layers=1, batch_first=True)        #RNN-Layer
                 self.fc = nn.Linear(hidden_size, output_size)                       #Fully Connected Layer
 
             def forward(self, x):
-                h_0 = torch.zeros(1, x.size(0), hidden_size)                        #Initialisiere den versteckten Zustand
+                h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)          #Initialisiere den versteckten Zustand
                 out, _ = self.rnn(x, h_0)                                           #RNN Berechnung
                 out = self.fc(out[:, -1, :])                                        #Ausgabe des letzten Zeitpunkts
                 return out
@@ -198,7 +200,7 @@ if __name__ == "__main__":
     # 4. Modell trainieren
     crypto_rnn.train_model(num_epochs=50, batch_size=32, learning_rate=0.001)
 
-    #Visualisierung des Trainings-und Validierungsverlustes
+    ####Visualisierung des Trainings-und Validierungsverlustes
     import matplotlib.pyplot as plt
 
     # Beispiel: Verlustwerte während des Trainings
@@ -214,7 +216,6 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-
     # 5. Vorhersagen treffen
     test_input = crypto_rnn.X_val[:5]  # Beispiel: Erste 5 Sequenzen
     predictions = crypto_rnn.predict(test_input)
@@ -229,21 +230,39 @@ if __name__ == "__main__":
     predictions_original_scale = predictions * ohlc_std['close'] + ohlc_mean['close']
     print("Rücknormierte Vorhersagen (im Originalmaßstab):", predictions_original_scale)
 
+    # Anzahl der Datenpunkte, die wir visualisieren wollen (angenommen, wir haben mindestens 50 Datenpunkte)
+    n = min(50, len(predictions_original_scale))
+
+    # Bereite die tatsächlichen Werte (Validierungsdaten) und die Vorhersagen vor
+    actual_prices = crypto_rnn.df['close'].iloc[-(len(crypto_rnn.y_val)):].values[:n]
+    predicted_prices = predictions_original_scale[:n].flatten().detach().numpy()
+
+    # Visualisierung der Vorhersagen
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(actual_prices, label="Actual Prices", color='blue', alpha=0.7)
+    plt.plot(predicted_prices, label="Predicted Prices", color='red', linestyle='--', alpha=0.7)
+    plt.title("Bitcoin Price Prediction")
+    plt.xlabel("Time Steps")
+    plt.ylabel("Price (USD)")
+    plt.legend()
+    plt.show()
+
+
     # Handelsstrategien
     # Einfache Preisprognose
     current_price = crypto_rnn.df.iloc[-1]['close']  # Aktueller Schlusskurs
     predicted_price = predictions_original_scale[0].item()  # Vorhergesagter nächster Schlusskurs
 
     if predicted_price > current_price:
-        print("Strategie: Kaufen (Preis wird steigen).")
+        print("Strategie-Einfache_Preisprognose: Kaufen (Preis wird steigen).")
     else:
-        print("Strategie: Verkaufen (Preis wird fallen).")
+        print("Strategie-Einfache_Preisprognose: Verkaufen (Preis wird fallen).")
 
     # Threshold-basierter Handel
-    threshold = 0.02  # 2% Schwelle
-    if (predicted_price - current_price) / current_price > threshold:
-        print("Strategie: Kaufen (hohe Wahrscheinlichkeit, dass der Preis steigt).")
-    elif (current_price - predicted_price) / current_price > threshold:
-        print("Strategie: Verkaufen (hohe Wahrscheinlichkeit, dass der Preis fällt).")
-    else:
-        print("Strategie: Keine Aktion (Unklarer Markttrend).")
+    #threshold = 0.02  # 2% Schwelle
+    #elif (current_price - predicted_price) / current_price > threshold:
+        #print("Strategie-Treshold: Verkaufen (hohe Wahrscheinlichkeit, dass der Preis fällt).")
+    #else:
+        #print("Strategie-Treshold: Keine Aktion (Unklarer Markttrend).")
