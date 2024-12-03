@@ -249,7 +249,6 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-
     # Handelsstrategien
     # Einfache Preisprognose
     current_price = crypto_rnn.df.iloc[-1]['close']  # Aktueller Schlusskurs
