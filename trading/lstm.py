@@ -1,12 +1,4 @@
 import krakenex
-
-api = krakenex.API()
-api.key = 'w3if4ZjPEKdgCVsj7J/KVRgkSKhAhYBcJJrrp8gXTfrRdlylAVafK85F'
-
-# API fuction call
-response = api.query_public('Ticker', {'pair': 'XXBTZUSD'})
-    # print(response['result'])
-
 import requests
 import time
 import pandas as pd
@@ -15,12 +7,22 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+
+# Initialize Kraken API
+api = krakenex.API()
+api.key = 'w3if4ZjPEKdgCVsj7J/KVRgkSKhAhYBcJJrrp8gXTfrRdlylAVafK85F'
+
+# Fetch current ticker data
+response = api.query_public('Ticker', {'pair': 'XXBTZUSD'})
+print(response['result'])
 
 # 1. Fetch historical Bitcoin data from Kraken API
 url = "https://api.kraken.com/0/public/OHLC"
 params = {
-    'pair': 'XXBTZUSD',  # Bitcoin (XBT) to US Dollar (USD)
-    'interval': 60,      # Time interval (e.g., 60 minutes)
+    'pair': 'XXBTZUSD',
+    'interval': 60,  # Time interval (60 minutes)
     'since': int(time.time()) - 60 * 60 * 24 * 90  # Data from the last 90 days
 }
 response = requests.get(url, params=params)
@@ -32,10 +34,19 @@ if len(data['error']) == 0:  # No errors
         ohlc, columns=['time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count']
     )
     df['time'] = pd.to_datetime(df['time'], unit='s')  # Convert time to datetime
-    print(df.head())
 else:
     print("Error:", data['error'])
     exit()
+
+# Ensure the 'close' column is numeric
+df['close'] = pd.to_numeric(df['close'], errors='coerce')
+
+# Drop rows with invalid (NaN) values in the 'close' column
+df.dropna(subset=['close'], inplace=True)
+
+# Calculate the average Bitcoin price in the selected time period
+average_price = df['close'][-48:].mean()
+print(f"Average Bitcoin price in the selected period: {average_price:.2f} USD")
 
 
 # 2. Prepare data for LSTM
@@ -47,31 +58,25 @@ scaler = MinMaxScaler()
 df['close_scaled'] = scaler.fit_transform(df[['close']])
 
 # Create sequences for LSTM
-sequence_length = 48  # 48 hours (2 days)
+sequence_length = 48
 X, y = [], []
 data = df['close_scaled'].values
 
 for i in range(len(data) - sequence_length):
-    X.append(data[i:i+sequence_length])  # Time window
-    y.append(data[i+sequence_length])    # Next closing price
+    X.append(data[i:i + sequence_length])
+    y.append(data[i + sequence_length])
 
-X = np.array(X).reshape(-1, sequence_length, 1)  # Reshape for LSTM (batch, seq_len, features)
+X = np.array(X).reshape(-1, sequence_length, 1)
 y = np.array(y)
 
 # Convert to PyTorch tensors
 X_tensor = torch.tensor(X, dtype=torch.float32)
 y_tensor = torch.tensor(y, dtype=torch.float32)
 
-# Split into train and validation sets
-# Convert to PyTorch tensors
-X_tensor = torch.tensor(X, dtype=torch.float32)
-y_tensor = torch.tensor(y, dtype=torch.float32)
-
-# Split into train and validation sets (last 20% as test data)
+# Split into training and validation sets
 split_index = int(len(X_tensor) * 0.8)
 X_train, X_val = X_tensor[:split_index], X_tensor[split_index:]
 y_train, y_val = y_tensor[:split_index], y_tensor[split_index:]
-
 
 # 3. Define the LSTM model
 class BitcoinLSTM(nn.Module):
@@ -81,109 +86,109 @@ class BitcoinLSTM(nn.Module):
         self.fc = nn.Linear(hidden_size, 1)
 
     def forward(self, x):
-        out, (hidden, _) = self.lstm(x)
+        _, (hidden, _) = self.lstm(x)
         output = self.fc(hidden[-1])
         return output
 
-input_size = 1  # Only the 'close' feature
-hidden_size = 64 # 128 - 2 USD difference
+input_size = 1
+hidden_size = 64
 num_layers = 2
 model = BitcoinLSTM(input_size, hidden_size, num_layers)
-
 
 # 4. Define loss function and optimizer
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# 5. Train the model with separate training and validation loss calculation
+# 5. Train the model with training and validation loss
 train_loss_values = []
 val_loss_values = []
-num_epochs = 100
-batch_size = 32  # Größe der Batches
+num_epochs = 30
+batch_size = 32
 
 for epoch in range(num_epochs):
+    model.train()
     epoch_loss = 0
-    model.train()  # Modell in den Trainingsmodus setzen
 
-    # Training in Batches
     for i in range(0, len(X_train), batch_size):
         X_batch = X_train[i:i + batch_size]
         y_batch = y_train[i:i + batch_size]
 
-        optimizer.zero_grad()  # Gradienten zurücksetzen
-        outputs = model(X_batch)  # Vorhersagen
-        loss = criterion(outputs.squeeze(), y_batch)  # Verlust berechnen
-        loss.backward()  # Backpropagation
-        optimizer.step()  # Gewichte aktualisieren
-
-        # Summiere den Batch-Verlust für die aktuelle Epoche
+        optimizer.zero_grad()
+        outputs = model(X_batch)
+        loss = criterion(outputs.squeeze(), y_batch)
+        loss.backward()
+        optimizer.step()
         epoch_loss += loss.item()
 
-    # Berechne den durchschnittlichen Trainingsverlust für die Epoche
-    train_loss_epoch = epoch_loss / len(X_train)
-    train_loss_values.append(train_loss_epoch)
+    train_loss = epoch_loss / len(X_train)
+    train_loss_values.append(train_loss)
 
-    # Validierung
-    model.eval()  # Modell in den Evaluierungsmodus setzen
+    # Validation
+    model.eval()
     val_loss = 0
     with torch.no_grad():
         for i in range(0, len(X_val), batch_size):
             X_val_batch = X_val[i:i + batch_size]
             y_val_batch = y_val[i:i + batch_size]
-            outputs = model(X_val_batch)  # Vorhersagen
-            val_loss += criterion(outputs.squeeze(), y_val_batch).item()  # Validierungsverlust summieren
+            outputs = model(X_val_batch)
+            val_loss += criterion(outputs.squeeze(), y_val_batch).item()
 
-    # Berechne den durchschnittlichen Validierungsverlust für die Epoche
-    val_loss_epoch = val_loss / len(X_val)
-    val_loss_values.append(val_loss_epoch)
+    val_loss /= len(X_val)
+    val_loss_values.append(val_loss)
 
-    # Ausgabe der Verluste für die aktuelle Epoche
-    print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {train_loss_epoch:.6f}, Validation Loss: {val_loss_epoch:.6f}")
+    print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {train_loss:.6f}, Validation Loss: {val_loss:.6f}")
 
-# 6. Plot training and validation losses
-import matplotlib.pyplot as plt
+# 6. Plot training and validation loss
 plt.figure(figsize=(10, 6))
-plt.plot(range(num_epochs), train_loss_values, label="Training Loss", color='blue')
-plt.plot(range(num_epochs), val_loss_values, label="Validation Loss", color='orange')
+plt.plot(range(num_epochs), train_loss_values, label="Training Loss")
+plt.plot(range(num_epochs), val_loss_values, label="Validation Loss")
 plt.xlabel("Epochs")
 plt.ylabel("Loss")
-plt.title("Training and Validation Loss Over Epochs")
 plt.legend()
+plt.title("Training and Validation Loss")
 plt.show()
+
+
+
 
 
 # 7. Validate the model
 model.eval()
 with torch.no_grad():
-    val_outputs = model(X_val)
-    val_loss = criterion(val_outputs.squeeze(), y_val)
-    print(f"Validation Loss: {val_loss.item():.4f}")
+    val_outputs = model(X_val).squeeze()
+    predictions = val_outputs.numpy()
+    y_val_rescaled = scaler.inverse_transform(y_val.numpy().reshape(-1, 1)).flatten()
+    predictions_rescaled = scaler.inverse_transform(predictions.reshape(-1, 1)).flatten()
 
+# Calculate the Mean Squared Error (MSE) between actual and predicted prices
+mse = mean_squared_error(y_val_rescaled, predictions_rescaled)
+print(f"Mean Squared Error (MSE): {mse:.4f}")
 
-# 8. Make predictions and visualize
-model.eval()
-with torch.no_grad():
-    predictions = model(X_val).squeeze()
-    predictions = predictions.numpy()
-    y_val_np = y_val.numpy()
+# Calculate deviations
+average_price = df['close'][-48:].mean()
 
-# Rescale the predictions and actual values
-predictions_rescaled = scaler.inverse_transform(predictions.reshape(-1, 1)).flatten()
-y_val_rescaled = scaler.inverse_transform(y_val_np.reshape(-1, 1)).flatten()
+# Deviations of predicted prices from actual prices
+predicted_deviations = predictions_rescaled - y_val_rescaled
 
-# Calculate the Mean Absolute Error (MAE)
-mae = np.mean(np.abs(predictions_rescaled - y_val_rescaled))
-print(f"Mean Absolute Error (MAE): {mae:.4f}")
+# Deviations of average price from actual prices
+average_deviations = average_price - y_val_rescaled
 
-# Plot the predictions vs. actual values
-import matplotlib.pyplot as plt
+# Mean Absolute Deviation for predictions
+mad_predictions = np.mean(np.abs(predicted_deviations))
+print(f"Mean Absolute Deviation (MAD) of Predictions: {mad_predictions:.4f} USD")
 
+# Mean Absolute Deviation for average price
+mad_average = np.mean(np.abs(average_deviations))
+print(f"Mean Absolute Deviation (MAD) of Average Price: {mad_average:.4f} USD")
+
+# Plot actual vs. predicted prices and deviations
 plt.figure(figsize=(12, 6))
 plt.plot(y_val_rescaled, label="Actual Prices", color='blue', alpha=0.7)
 plt.plot(predictions_rescaled, label="Predicted Prices", color='red', alpha=0.7)
-plt.title("Bitcoin Price Prediction")
+plt.axhline(y=average_price, color='green', linestyle='--', label="Average Price")
+
+plt.title("Bitcoin Price Prediction with Deviations")
 plt.xlabel("Time Steps")
-plt.ylabel("Price (USD)")
+plt.ylabel("Price (USD) / Deviations")
 plt.legend()
 plt.show()
-
