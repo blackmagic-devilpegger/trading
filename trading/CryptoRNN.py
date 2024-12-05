@@ -103,7 +103,7 @@ class CryptoRNN:
         self.model = RNNModel(input_size, hidden_size, output_size)
         print("Modell erstellt.")
 
-    def train_model(self, num_epochs=50, batch_size=32, learning_rate=0.001, patience=5):
+    def train_model(self, num_epochs=50, batch_size=32, learning_rate=0.0001, patience=10):
         """
         Trainiert das RNN-Modell mit Early Stopping .
         """
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     crypto_rnn.create_model(input_size=4, hidden_size=50, output_size=1)
 
     # 4. Modell trainieren
-    crypto_rnn.train_model(num_epochs=50, batch_size=32, learning_rate=0.001)
+    crypto_rnn.train_model(num_epochs=50, batch_size=32, learning_rate=0.0005)
 
     ####Visualisierung des Trainings-und Validierungsverlustes
     import matplotlib.pyplot as plt
@@ -226,16 +226,28 @@ if __name__ == "__main__":
     ohlc_mean = crypto_rnn.df[['open', 'high', 'low', 'close']].mean()
     ohlc_std = crypto_rnn.df[['open', 'high', 'low', 'close']].std()
 
+
     # Rücknormalisieren der Vorhersagen
     predictions_original_scale = predictions * ohlc_std['close'] + ohlc_mean['close']
+    predictions_original_scale = predictions_original_scale.detach().numpy()  # Konvertierung in numpy-Array
     print("Rücknormierte Vorhersagen (im Originalmaßstab):", predictions_original_scale)
+
+    # Mean Absolute Deviation for predictions
+    mad_predictions = np.mean(
+        np.abs(predictions_original_scale - crypto_rnn.df['close'].iloc[-len(predictions):].values))
+    print(f"Mean Absolute Deviation (MAD) of Predictions: {mad_predictions:.4f} USD")
+
+    # Mean Absolute Deviation for average price
+    average_price = crypto_rnn.df['close'].mean()
+    mad_average = np.mean(np.abs(crypto_rnn.df['close'] - average_price))
+    print(f"Mean Absolute Deviation (MAD) of Average Price: {mad_average:.4f} USD")
 
     # Anzahl der Datenpunkte, die wir visualisieren wollen (angenommen, wir haben mindestens 50 Datenpunkte)
     n = min(50, len(predictions_original_scale))
 
     # Bereite die tatsächlichen Werte (Validierungsdaten) und die Vorhersagen vor
     actual_prices = crypto_rnn.df['close'].iloc[-(len(crypto_rnn.y_val)):].values[:n]
-    predicted_prices = predictions_original_scale[:n].flatten().detach().numpy()
+    predicted_prices = predictions_original_scale[:n]
 
     # Visualisierung der Vorhersagen
     import matplotlib.pyplot as plt
@@ -249,15 +261,19 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
+
     # Handelsstrategien
     # Einfache Preisprognose
     current_price = crypto_rnn.df.iloc[-1]['close']  # Aktueller Schlusskurs
     predicted_price = predictions_original_scale[0].item()  # Vorhergesagter nächster Schlusskurs
 
-    if predicted_price > current_price:
+    margin = 0.02 * current_price  # Sicherheitsmarge von 2,0 %
+    if predicted_price > current_price + margin:
         print("Strategie-Einfache_Preisprognose: Kaufen (Preis wird steigen).")
-    else:
+    elif predicted_price < current_price - margin:
         print("Strategie-Einfache_Preisprognose: Verkaufen (Preis wird fallen).")
+    else:
+        print("Strategie-Einfache_Preisprognose: Keine Aktion (Unsicherheit zu groß).")
 
     # Threshold-basierter Handel
     #threshold = 0.02  # 2% Schwelle
