@@ -1,6 +1,4 @@
-import krakenex
 import requests
-import time
 import pandas as pd
 import numpy as np
 import torch
@@ -10,74 +8,112 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 
-# Initialize Kraken API
-api = krakenex.API()
-api.key = 'w3if4ZjPEKdgCVsj7J/KVRgkSKhAhYBcJJrrp8gXTfrRdlylAVafK85F'
 
-# Fetch current ticker data
-response = api.query_public('Ticker', {'pair': 'XXBTZUSD'})
-print(response['result'])
+def fetch_bitcoin_historical_data():
+    """
+    Fetch Bitcoin historical price data from a reliable public API
 
-# 1. Fetch historical Bitcoin data from Kraken API
-url = "https://api.kraken.com/0/public/OHLC"
-params = {
-    'pair': 'XXBTZUSD',
-    'interval': 60,  # Time interval (60 minutes)
-    'since': int(time.time()) - 60 * 60 * 24 * 90  # Data from the last 90 days
-}
-response = requests.get(url, params=params)
-data = response.json()
+    Returns:
+    pandas.DataFrame with historical price data
+    """
+    # Use CoinGecko API as an alternative data source
+    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=3650"
 
-if len(data['error']) == 0:  # No errors
-    ohlc = data['result']['XXBTZUSD']
-    df = pd.DataFrame(
-        ohlc, columns=['time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count']
-    )
-    df['time'] = pd.to_datetime(df['time'], unit='s')  # Convert time to datetime
-else:
-    print("Error:", data['error'])
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract price data
+        prices = data['prices']
+        df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+
+        # Convert timestamp to datetime
+        df['time'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df = df[['time', 'price']]
+        df.columns = ['time', 'close']
+
+        return df
+
+    except Exception as e:
+        print(f"Data retrieval error: {e}")
+        return pd.DataFrame()
+
+
+# Fetch historical Bitcoin data
+df = fetch_bitcoin_historical_data()
+
+# Verify data retrieval
+if df.empty:
+    print("No historical data retrieved. Check API connection.")
     exit()
 
-# Ensure the 'close' column is numeric
-df['close'] = pd.to_numeric(df['close'], errors='coerce')
-
-# Drop rows with invalid (NaN) values in the 'close' column
-df.dropna(subset=['close'], inplace=True)
-
-# Calculate the average Bitcoin price in the selected time period
-average_price = df['close'].iloc[-1]  # Get the price of the last hour
-print(f"Average Bitcoin price in the selected period: {average_price:.2f} USD")
+# Print data overview
+print(f"Total historical data points: {len(df)}")
+print(f"Date range: {df['time'].min()} to {df['time'].max()}")
 
 
-# 2. Prepare data for LSTM
-df = df[['time', 'close']]
-df.set_index('time', inplace=True)
+def prepare_lstm_data(data, train_start, train_end, test_start, test_end, sequence_length=48):
+    """
+    Prepare training and testing data for LSTM
+    """
+    # Filter data for training and testing
+    df_train = data[(data['time'] >= train_start) & (data['time'] <= train_end)]
+    df_test = data[(data['time'] >= test_start) & (data['time'] <= test_end)]
 
-# Normalize the data
-scaler = MinMaxScaler()
-df['close_scaled'] = scaler.fit_transform(df[['close']])
+    print(f"Training data range: {df_train['time'].min()} to {df_train['time'].max()}")
+    print(f"Training data points: {len(df_train)}")
+    print(f"Testing data range: {df_test['time'].min()} to {df_test['time'].max()}")
+    print(f"Testing data points: {len(df_test)}")
 
-# Create sequences for LSTM
-sequence_length = 48  # higher - line
-X, y = [], []
-data = df['close_scaled'].values
+    def create_sequences(data, sequence_length):
+        # Normalize the data
+        scaler = MinMaxScaler()
+        scaled_data = scaler.fit_transform(data[['close']])
 
-for i in range(len(data) - sequence_length):
-    X.append(data[i:i + sequence_length])
-    y.append(data[i + sequence_length])
+        # Create sequences
+        X, y = [], []
+        for i in range(len(scaled_data) - sequence_length):
+            X.append(scaled_data[i:i + sequence_length])
+            y.append(scaled_data[i + sequence_length])
 
-X = np.array(X).reshape(-1, sequence_length, 1)
-y = np.array(y)
+        return (np.array(X).reshape(-1, sequence_length, 1),
+                np.array(y),
+                scaler)
+
+    # Create sequences for train and test
+    X_train, y_train, train_scaler = create_sequences(df_train, sequence_length)
+    X_test, y_test, test_scaler = create_sequences(df_test, sequence_length)
+
+    return (X_train, y_train, train_scaler,
+            X_test, y_test, test_scaler)
+
+
+# Define date ranges
+train_start = df['time'].min()
+train_end = df['time'].max() - pd.DateOffset(years=1)
+test_start = train_end + pd.DateOffset(days=1)
+test_end = df['time'].max()
+
+# Prepare LSTM data
+try:
+    X_train, y_train, train_scaler, X_test, y_test, test_scaler = prepare_lstm_data(
+        df, train_start, train_end, test_start, test_end
+    )
+except ValueError as e:
+    print(f"Data preparation error: {e}")
+    exit()
 
 # Convert to PyTorch tensors
-X_tensor = torch.tensor(X, dtype=torch.float32)
-y_tensor = torch.tensor(y, dtype=torch.float32)
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
-# Split into training and validation sets
-split_index = int(len(X_tensor) * 0.8)
-X_train, X_val = X_tensor[:split_index], X_tensor[split_index:]
-y_train, y_val = y_tensor[:split_index], y_tensor[split_index:]
 
+# Rest of your existing LSTM model code remains the same
+
+# Rest of the code remains the same...
 # 3. Define the LSTM model
 class BitcoinLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers):
@@ -125,16 +161,29 @@ for epoch in range(num_epochs):
 
     # Validation
     model.eval()
-    val_loss = 0
     with torch.no_grad():
-        for i in range(0, len(X_val), batch_size):
-            X_val_batch = X_val[i:i + batch_size]
-            y_val_batch = y_val[i:i + batch_size]
-            outputs = model(X_val_batch)
-            val_loss += criterion(outputs.squeeze(), y_val_batch).item()
+        all_predictions = []
+        all_actual_prices = []
 
-    val_loss /= len(X_val)
-    val_loss_values.append(val_loss)
+        for i in range(len(X_test_tensor)):
+            val_output = model(X_test_tensor[i].unsqueeze(0)).squeeze()
+
+            prediction = val_output.numpy()
+            actual_price = y_test_tensor[i].numpy()
+
+            all_predictions.append(prediction)
+            all_actual_prices.append(actual_price)
+
+        predictions = np.array(all_predictions)
+        y_test_numpy = np.array(all_actual_prices)
+
+        # Use test_scaler for rescaling
+        y_test_rescaled = test_scaler.inverse_transform(y_test_numpy.reshape(-1, 1)).flatten()
+        predictions_rescaled = test_scaler.inverse_transform(predictions.reshape(-1, 1)).flatten()
+
+    # Calculate performance metrics
+    mse = mean_squared_error(y_test_rescaled, predictions_rescaled)
+    print(f"Mean Squared Error (MSE) on Test Data: {mse:.4f}")
 
     print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {train_loss:.6f}, Validation Loss: {val_loss:.6f}")
 

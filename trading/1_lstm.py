@@ -97,7 +97,7 @@ model = BitcoinLSTM(input_size, hidden_size, num_layers)
 
 # 4. Define loss function and optimizer
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0011)
 
 # 5. Train the model with training and validation loss
 train_loss_values = []
@@ -147,9 +147,6 @@ plt.ylabel("Loss")
 plt.legend()
 plt.title("Training and Validation Loss")
 plt.show()
-
-
-
 
 
 # 7. Validate the model

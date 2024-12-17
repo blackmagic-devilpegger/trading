@@ -18,4 +18,14 @@ Number of epochs: 20
 --> lower number of epochs: less accurate prediction
 => 20: good trade-off between accuracy and time
 
-Number of layer? Scaler? Optimizer? More forward passes?
+Optimizer: Adam
+--> SGD: straight lower line
+---> RMSprop: flatter prediction line
+---> AdamW: higher MAD (than Adam)
+
+Learning Rate: 0.0011
+--> higher learning rate: higher MAD, straight line
+--> lower learning rate: higher MAD, straight low line
+=> lowest MAD with learning rate 0.0011
+
+Number of layer? Scaler? More forward passes?
