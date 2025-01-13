@@ -1,3 +1,4 @@
+import yfinance as yf
 import krakenex
 import requests
 import time
@@ -14,7 +15,7 @@ import matplotlib.pyplot as plt
 api = krakenex.API()
 api.key = 'w3if4ZjPEKdgCVsj7J/KVRgkSKhAhYBcJJrrp8gXTfrRdlylAVafK85F'
 
-# Fetch current ticker data
+# Fetch current ticker data from Kraken API
 response = api.query_public('Ticker', {'pair': 'XXBTZUSD'})
 print(response['result'])
 
@@ -48,17 +49,34 @@ df.dropna(subset=['close'], inplace=True)
 average_price = df['close'].iloc[-1]  # Get the price of the last hour
 print(f"Average Bitcoin price in the selected period: {average_price:.2f} USD")
 
+# 2. Fetch financial data using yfinance
+# Fetch single ticker data
+ticker = yf.Ticker("AAPL")
+aapl_info = ticker.info
+print("Apple Stock Information:", aapl_info)
 
-# 2. Prepare data for LSTM
+# Fetch multiple tickers' data
+tickers = ["AAPL", "MSFT", "GOOGL"]
+data = yf.download(tickers, period="1mo", interval="1d")
+print("Multiple Tickers Data:\n", data.head())
+
+# Sector and industry information
+aapl_sector = aapl_info.get("sector", "Sector information unavailable")
+aapl_industry = aapl_info.get("industry", "Industry information unavailable")
+print(f"AAPL Sector: {aapl_sector}, Industry: {aapl_industry}")
+
+# Equity screener (example)
+screened_data = yf.Screener().scrape(filters=['high_pe_ratio'], count=5)
+print("High P/E Ratio Stocks:\n", screened_data)
+
+# Normalize Bitcoin data
 df = df[['time', 'close']]
 df.set_index('time', inplace=True)
-
-# Normalize the data
 scaler = MinMaxScaler()
 df['close_scaled'] = scaler.fit_transform(df[['close']])
 
-# Create sequences for LSTM
-sequence_length = 48  # higher - line
+# Prepare data for LSTM
+sequence_length = 48  # Higher = smoother, lower = more reactive
 X, y = [], []
 data = df['close_scaled'].values
 
@@ -68,6 +86,8 @@ for i in range(len(data) - sequence_length):
 
 X = np.array(X).reshape(-1, sequence_length, 1)
 y = np.array(y)
+
+print(f"Prepared LSTM Data: {X.shape}, {y.shape}")
 
 # Convert to PyTorch tensors
 X_tensor = torch.tensor(X, dtype=torch.float32)

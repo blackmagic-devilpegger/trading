@@ -28,8 +28,6 @@ Learning Rate: 0.0011
 --> lower learning rate: higher MAD, straight low line
 => lowest MAD with learning rate 0.0011
 
-Number of layer? Scaler?
-
 
 Output: 
 [...]
