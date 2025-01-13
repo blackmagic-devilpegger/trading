@@ -23,7 +23,7 @@ url = "https://api.kraken.com/0/public/OHLC"
 params = {
     'pair': 'XXBTZUSD',
     'interval': 60,  # Time interval (60 minutes)
-    'since': int(time.time()) - 60 * 60 * 24 * 90  # Data from the last 90 days
+    'since': int(time.time()) - 60 * 60 * 24 * 30  # Data from the last 30 days
 }
 response = requests.get(url, params=params)
 data = response.json()

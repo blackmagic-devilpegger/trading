@@ -28,4 +28,21 @@ Learning Rate: 0.0011
 --> lower learning rate: higher MAD, straight low line
 => lowest MAD with learning rate 0.0011
 
-Number of layer? Scaler? More forward passes?
+Number of layer? Scaler?
+
+
+Output: 
+[...]
+Average Bitcoin price in the selected period: 94188.50 USD
+Mean Squared Error (MSE): 2992430.5000
+Mean Absolute Deviation (MAD) of Predictions: 1573.8402 USD
+Mean Absolute Deviation (MAD) of Last Hour Price: 350.3919 USD
+
+=> MAD of predictions is 4.5 times higher than MAD of last hour price
+The model's MAD is significantly higher than the baseline, indicating room 
+for improvement in prediction accuracy compared to the naive last-hour baseline.
+
+
+
+
+

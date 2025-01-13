@@ -135,21 +135,73 @@ X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
 y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
 # 3. Define the LSTM model
-class BitcoinLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers):
-        super(BitcoinLSTM, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, 1)
+class BitcoinCNNLSTM(nn.Module):
+    def __init__(self, sequence_length: int, n_features: int = 5):
+        super(BitcoinCNNLSTM, self).__init__()
+
+        # CNN for feature extraction
+        self.cnn = nn.Sequential(
+            nn.Conv1d(n_features, 32, kernel_size=3, padding=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Conv1d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.2)
+        )
+
+        # LSTM for temporal dependencies
+        self.lstm = nn.LSTM(
+            input_size=64,
+            hidden_size=128,
+            num_layers=2,
+            batch_first=True,
+            dropout=0.2,
+            bidirectional=True
+        )
+
+        # Attention mechanism
+        self.attention = nn.Sequential(
+            nn.Linear(256, 64),  # 256 because LSTM is bidirectional (128*2)
+            nn.Tanh(),
+            nn.Linear(64, 1),
+            nn.Softmax(dim=1)
+        )
+
+        # Output layers
+        self.fc = nn.Sequential(
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(32, 1)
+        )
 
     def forward(self, x):
-        _, (hidden, _) = self.lstm(x)
-        output = self.fc(hidden[-1])
-        return output
+        # CNN feature extraction
+        cnn_out = self.cnn(x)
+
+        # Prepare for LSTM (batch, seq, features)
+        lstm_in = cnn_out.transpose(1, 2)
+
+        # LSTM processing
+        lstm_out, _ = self.lstm(lstm_in)
+
+        # Apply attention
+        attn_weights = self.attention(lstm_out)
+        context = torch.sum(attn_weights * lstm_out, dim=1)
+
+        # Final prediction
+        out = self.fc(context)
+        return out
 
 input_size = 1
 hidden_size = 256
 num_layers = 2
-model = BitcoinLSTM(input_size, hidden_size, num_layers)
+model = BitcoinCNNLSTM(input_size, hidden_size)
 
 # 4. Define loss function and optimizer
 criterion = nn.MSELoss()
