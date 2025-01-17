@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
 import time
 import logging
+import seaborn as sns
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -66,26 +67,30 @@ def calculate_rsi(prices, periods=14):
 
 
 def prepare_data(df, sequence_length=48, train_split=0.8):
-    """Prepare data for training with improved normalization"""
-    scaler = StandardScaler()
+    """Prepare data for training with correct price scaling"""
+    # Create separate scalers for each feature
+    price_scaler = StandardScaler()
+    sma_scaler = StandardScaler()
+    rsi_scaler = StandardScaler()
 
-    # Scale each feature independently
-    scaled_data = np.zeros((len(df), 3))
-    for i, col in enumerate(['close', 'SMA', 'RSI']):
-        scaled_data[:, i] = scaler.fit_transform(df[[col]]).ravel()
+    # Scale each feature independently and store the scalers
+    scaled_close = price_scaler.fit_transform(df[['close']])
+    scaled_sma = sma_scaler.fit_transform(df[['SMA']])
+    scaled_rsi = rsi_scaler.fit_transform(df[['RSI']])
 
-    # Ensure no infinities or NaNs
-    scaled_data = np.nan_to_num(scaled_data, nan=0.0, posinf=1.0, neginf=-1.0)
+    # Combine scaled features
+    scaled_data = np.column_stack((scaled_close, scaled_sma, scaled_rsi))
 
+    # Create sequences
     X, y = [], []
     for i in range(len(scaled_data) - sequence_length):
         X.append(scaled_data[i:(i + sequence_length)])
-        y.append(scaled_data[i + sequence_length, 0])
+        y.append(scaled_close[i + sequence_length])  # Only predict the price
 
-    X = np.clip(X, -10, 10)  # Clip values to prevent extremes
-    y = np.clip(y, -10, 10)
+    X = np.array(X)
+    y = np.array(y)
 
-    X, y = np.array(X), np.array(y)
+    # Split into train and test sets
     train_size = int(len(X) * train_split)
 
     X_train = torch.FloatTensor(X[:train_size]).transpose(1, 2)
@@ -93,8 +98,7 @@ def prepare_data(df, sequence_length=48, train_split=0.8):
     X_test = torch.FloatTensor(X[train_size:]).transpose(1, 2)
     y_test = torch.FloatTensor(y[train_size:])
 
-    return X_train, y_train, X_test, y_test, scaler
-
+    return X_train, y_train, X_test, y_test, price_scaler  # Return only price_scaler
 
 class BitcoinCNNLSTM(nn.Module):
     def __init__(self, n_features=3):
@@ -220,34 +224,65 @@ def train_model(model, X_train, y_train, X_test, y_test, epochs=20, batch_size=3
 
 
 def plot_results(history, y_true, y_pred, last_value_pred):
-    """Plot training history and predictions"""
-    plt.figure(figsize=(15, 10))
+    """
+    Plot training history and price predictions with proper USD formatting
+
+    Parameters:
+        history (dict): Training history containing 'train_loss' and 'val_loss'
+        y_true (array-like): Actual Bitcoin prices
+        y_pred (array-like): Model predictions
+        last_value_pred (array-like): Last value baseline predictions
+    """
+    plt.style.use('fivethirtyeight')  # Using a built-in style that looks professional
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 12))
 
     # Loss curves
-    plt.subplot(2, 1, 1)
-    plt.plot(history['train_loss'], label='Training Loss')
-    plt.plot(history['val_loss'], label='Validation Loss')
-    plt.title('Model Loss')
-    plt.legend()
-    plt.grid(True)
+    ax1.plot(history['train_loss'], label='Training Loss', linewidth=2)
+    ax1.plot(history['val_loss'], label='Validation Loss', linewidth=2)
+    ax1.set_title('Model Loss During Training', pad=15, fontsize=14)
+    ax1.set_xlabel('Epoch', fontsize=12)
+    ax1.set_ylabel('Loss', fontsize=12)
+    ax1.legend(fontsize=10)
+    ax1.grid(True, alpha=0.3)
 
-    # Predictions
-    plt.subplot(2, 1, 2)
-    plt.plot(y_true, label='Actual')
-    plt.plot(y_pred, label='Predicted')
-    plt.plot(last_value_pred, label='Last Value', alpha=0.5)
-    plt.title('Bitcoin Price Predictions')
-    plt.legend()
-    plt.grid(True)
+    # Predictions with USD formatting
+    ax2.plot(y_true, label='Actual', linewidth=2)
+    ax2.plot(y_pred, label='Predicted', linewidth=2)
+    ax2.plot(last_value_pred, label='Last Value Baseline', alpha=0.5, linestyle='--')
+
+    # Format y-axis to show USD
+    ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.2f}'))
+
+    # Rotate x-axis labels for better readability if dates are used
+    plt.setp(ax2.get_xticklabels(), rotation=45)
+
+    ax2.set_title('Bitcoin Price Predictions', pad=15, fontsize=14)
+    ax2.set_xlabel('Time Period', fontsize=12)
+    ax2.set_ylabel('Price (USD)', fontsize=12)
+    ax2.legend(fontsize=10)
+    ax2.grid(True, alpha=0.3)
+
+    # Add price annotations for the last actual and predicted values
+    last_actual = y_true[-1]
+    last_pred = y_pred[-1]
+
+    ax2.annotate(f'${last_actual:,.2f}',
+                 xy=(len(y_true) - 1, last_actual),
+                 xytext=(10, 10), textcoords='offset points',
+                 bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
+
+    ax2.annotate(f'${last_pred:,.2f}',
+                 xy=(len(y_pred) - 1, last_pred),
+                 xytext=(10, -10), textcoords='offset points',
+                 bbox=dict(boxstyle='round,pad=0.5', fc='lightblue', alpha=0.5))
 
     plt.tight_layout()
     plt.show()
 
-
 def main():
     # Fetch and prepare data
     df = fetch_bitcoin_data(days=30)
-    X_train, y_train, X_test, y_test, scaler = prepare_data(df)
+    X_train, y_train, X_test, y_test, price_scaler = prepare_data(df)
 
     # Initialize and train model
     model = BitcoinCNNLSTM()
@@ -260,19 +295,15 @@ def main():
         predictions = model(X_test.to(device)).cpu().numpy()
         last_value = X_test[:, 0, -1].numpy()  # Last known values
 
-    # Inverse transform predictions
-    pred_scaled = np.zeros((len(predictions), 3))
-    pred_scaled[:, 0] = predictions.flatten()
-    last_scaled = np.zeros((len(last_value), 3))
-    last_scaled[:, 0] = last_value
+    # Inverse transform predictions - now using only price_scaler
+    predictions = price_scaler.inverse_transform(predictions.reshape(-1, 1)).flatten()
+    y_true = price_scaler.inverse_transform(y_test.numpy().reshape(-1, 1)).flatten()
+    last_value_pred = price_scaler.inverse_transform(last_value.reshape(-1, 1)).flatten()
 
-    y_test = y_test.numpy()
-    y_test_scaled = np.zeros((len(y_test), 3))
-    y_test_scaled[:, 0] = y_test
-
-    predictions = scaler.inverse_transform(pred_scaled)[:, 0]
-    last_value_pred = scaler.inverse_transform(last_scaled)[:, 0]
-    y_true = scaler.inverse_transform(y_test_scaled)[:, 0]
+    # Print raw data stats
+    print("\nRaw Data Statistics:")
+    print(f"Price Range: ${df['close'].min():.2f} - ${df['close'].max():.2f}")
+    print(f"Average Price: ${df['close'].mean():.2f}")
 
     # Plot results and print metrics
     plot_results(history, y_true, predictions, last_value_pred)
@@ -283,7 +314,6 @@ def main():
     print(f"\nMSE: ${mse:.2f}")
     print(f"R² Score: {r2:.4f}")
     print(f"Mean Absolute Error: ${np.mean(np.abs(y_true - predictions)):.2f}")
-
 
 if __name__ == "__main__":
     main()

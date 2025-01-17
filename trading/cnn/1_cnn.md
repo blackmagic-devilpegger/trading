@@ -1,4 +1,12 @@
 CNN:
+Short description: 
+The CNN model utilizes convolutional layers to extract temporal and spatial 
+patterns from Bitcoin price data, with a focus on improving prediction accuracy 
+through feature normalization, dropout regularization, and detailed performance 
+monitoring. Despite its advanced architecture, the model struggles with prediction 
+variability and underperforms compared to simpler baselines and other iterations 
+like the LSTM model.
+
 Data Fetching:
 --> Kraken API retrieves 30 days of hourly OHLC data
 --> Features: close, SMA_20, RSI

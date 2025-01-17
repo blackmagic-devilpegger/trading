@@ -34,3 +34,16 @@ Additional Features:
 --> Real-time price visualization
 --> Training history plots
 --> Error metrics in USD format
+
+Output:
+[...]
+Raw Data Statistics:
+Price Range: $90684.00 - $104918.00
+Average Price: $96369.66
+
+MSE: $7911566.00
+R² Score: 0.0358
+Mean Absolute Error: $2181.40
+
+Comparison to 2_cnn-lstm.py:
+This one has slightly higher MAE and MSE but a positive (though low) R² score, indicating marginally better fit

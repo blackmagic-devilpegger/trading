@@ -1,4 +1,10 @@
 LSTM:
+Short description: 
+The LSTM model optimizes temporal price prediction through trade-offs in sequence length, hidden size, 
+batch size, epochs, and learning rate, achieving a balance between accuracy and computational efficiency. 
+Despite enhancements, the model's Mean Absolute Deviation (MAD) remains 4.5 times higher than the baseline, 
+highlighting significant potential for improvement in predictive precision.
+
 Sequenz length: 48 (48 hours)
 --> higher number of sequences: flatter prediction price line
 --> lower number of sequences: prediction price line follows the actual data more closely

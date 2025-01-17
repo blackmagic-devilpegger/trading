@@ -1,3 +1,9 @@
+LSTM:
+Short description: 
+The updated LSTM model introduces forward pass enhancements, baseline comparisons, and a refined training workflow 
+to improve prediction accuracy and temporal analysis. While it achieves lower Mean Absolute Deviation (MAD) and 
+Mean Squared Error (MSE) compared to its predecessor, the model still underperforms against the baseline.
+
 Changes to 1_lstm.py:
 Forward Pass Enhancement:  
 --> Generates predictions per input sequence, preserving temporal context.  

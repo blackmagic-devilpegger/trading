@@ -1,3 +1,11 @@
+CNN:
+Short description: 
+The updated BitcoinCNN model introduces multi-scale convolution and an attention mechanism 
+to dynamically weight features, aiming to improve temporal pattern recognition and generalization. 
+However, the model's performance significantly regressed compared to earlier CNN experiments, as 
+indicated by higher MSE, increased error variability, and lower R², highlighting challenges in 
+integrating advanced layers and tuning hyperparameters effectively.
+
 Data Fetching:
 --> Kraken API retrieves 30 days of hourly OHLC data
 --> Features: close, SMA_20, RSI
