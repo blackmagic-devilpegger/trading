@@ -82,7 +82,7 @@ These models represent the best experiments for their respective architectures, 
 ## Summary
 This comparison highlights the strengths of LSTM-based models for Bitcoin price prediction due to their superior handling of temporal dependencies and lower error metrics. While CNN and hybrid models like Boruta-CNN-LSTM introduce innovative architectures, they often require extensive tuning and may suffer from overfitting or high computational costs. Feature selection using Boruta enhances input relevance but needs careful integration with the chosen architecture for optimal results. Despite challenges in outperforming baselines, it provides valuable insights into combining feature engineering, hybrid architectures, and attention mechanisms for robust trading models.
 
-## Personal opimion
+## Personal opinion
 The experiments demonstrate the challenges in achieving robust predictive models for Bitcoin prices. Despite leveraging advanced architectures and feature selection techniques inspired by the referenced paper, the performance consistently fell short of the baseline. While the Boruta-CNN-LSTM model introduced promising innovations, its results were not as strong as anticipated. With additional time and further optimization, there may still be potential to improve its effectiveness and close the gap with the baseline.
 
 
