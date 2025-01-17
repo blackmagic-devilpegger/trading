@@ -1,13 +1,13 @@
-Bitcoin Trading Project: Deep Learning Models Analysis
+####Bitcoin Trading Project: Deep Learning Models Analysis
 
-Project Overview:
+## Project Overview
 A comprehensive exploration of deep learning architectures for Bitcoin price prediction, implementing various neural network models including CNN, LSTM, RNN, and hybrid architectures. The project aims to develop robust trading models for both regression (price prediction) and classification (movement direction) tasks.
 
 The idea for this project is based on insights from the paper "Machine learning-based predictive modeling of Bitcoin prices using blockchain information," which discusses leveraging advanced models for financial forecasting (https://jfin-swufe.springeropen.com/counter/pdf/10.1186/s40854-024-00643-1.pdf). The paper proposed using the Boruta algorithm alongside a CNN-LSTM model, which inspired our decision to integrate this approach into our experiments to enhance feature selection and predictive modeling.
 
 The project uses data fetched from Kraken and focuses on creating efficient, accurate, and interpretable trading strategies.
 
-Summary of Experiments and Results:
+## Summary of Experiments and Results
 1. RNN Experiments
 - Goal: Develop a foundational understanding of simple recurrent architectures.
 - Key Features:
@@ -79,9 +79,10 @@ These models represent the best experiments for their respective architectures, 
 - **Boruta-RNN Regression**: Incorporates feature selection for better input relevance, achieving a MAD of 5,662.93 USD, though improvement over baseline remains limited.
 - **Boruta-CNN-LSTM**: High computational complexity with poor performance (MSE: 9,033,470.00 USD, MAE: 2,392.57 USD), indicating overfitting or suboptimal architecture tuning.
 
-Summary:
+## Summary
 This comparison highlights the strengths of LSTM-based models for Bitcoin price prediction due to their superior handling of temporal dependencies and lower error metrics. While CNN and hybrid models like Boruta-CNN-LSTM introduce innovative architectures, they often require extensive tuning and may suffer from overfitting or high computational costs. Feature selection using Boruta enhances input relevance but needs careful integration with the chosen architecture for optimal results. Despite challenges in outperforming baselines, it provides valuable insights into combining feature engineering, hybrid architectures, and attention mechanisms for robust trading models.
 
-Personal opimion: The experiments demonstrate the challenges in achieving robust predictive models for Bitcoin prices. Despite leveraging advanced architectures and feature selection techniques inspired by the referenced paper, the performance consistently fell short of the baseline. While the Boruta-CNN-LSTM model introduced promising innovations, its results were not as strong as anticipated. With additional time and further optimization, there may still be potential to improve its effectiveness and close the gap with the baseline.
+## Personal opimion
+The experiments demonstrate the challenges in achieving robust predictive models for Bitcoin prices. Despite leveraging advanced architectures and feature selection techniques inspired by the referenced paper, the performance consistently fell short of the baseline. While the Boruta-CNN-LSTM model introduced promising innovations, its results were not as strong as anticipated. With additional time and further optimization, there may still be potential to improve its effectiveness and close the gap with the baseline.
 
 
