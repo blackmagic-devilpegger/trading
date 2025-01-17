@@ -50,3 +50,19 @@ Output Features:
 --> Detailed error metrics
 --> Performance statistics in USD
 --> Sample prediction analysis
+
+
+Output:
+[...]
+
+Sample Predictions:
+Actual: $96,932.20 | Predicted: $97,597.88 | Error: $665.68
+Actual: $97,232.80 | Predicted: $97,529.23 | Error: $296.43
+Actual: $96,855.30 | Predicted: $97,506.34 | Error: $651.04
+Actual: $96,909.90 | Predicted: $97,476.98 | Error: $567.08
+Actual: $96,499.10 | Predicted: $97,468.77 | Error: $969.66
+
+Model Performance:
+RMSE: $1,775.43
+MAE: $1,504.05
+R² Score: -1.5233
