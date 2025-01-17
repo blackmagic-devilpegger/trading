@@ -1,19 +1,13 @@
-# trading
+### Bitcoin Trading Project: Deep Learning Models Analysis
 
-Trading Project: CNN, LSTM, RNN Experiments
-
-General Description and Goal of the Project
-This project explores advanced deep learning models (CNN, LSTM, RNN, and hybrid CNN-LSTM architectures) for predicting Bitcoin prices based on historical data. By leveraging feature engineering, temporal patterns, and optimization strategies, the primary objective is to develop robust trading models that integrate regression and classification tasks to:
-
-- Predict Bitcoin's next closing price (regression).
-- Classify price movements into rise, fall, or stability (classification).
+## Project Overview
+A comprehensive exploration of deep learning architectures for Bitcoin price prediction, implementing various neural network models including CNN, LSTM, RNN, and hybrid architectures. The project aims to develop robust trading models for both regression (price prediction) and classification (movement direction) tasks.
 
 The idea for this project is based on insights from the paper "Machine learning-based predictive modeling of Bitcoin prices using blockchain information," which discusses leveraging advanced models for financial forecasting (https://jfin-swufe.springeropen.com/counter/pdf/10.1186/s40854-024-00643-1.pdf). The paper proposed using the Boruta algorithm alongside a CNN-LSTM model, which inspired our decision to integrate this approach into our experiments to enhance feature selection and predictive modeling.
 
 The project uses data fetched from Kraken and focuses on creating efficient, accurate, and interpretable trading strategies.
 
-Summary of Experiments and Results
-
+## Summary of Experiments and Results
 1. RNN Experiments
 - Goal: Develop a foundational understanding of simple recurrent architectures.
 - Key Features:
@@ -62,12 +56,33 @@ Summary of Experiments and Results
   - Regression models showed improved validation loss.
   - Classification models failed to identify significant features, highlighting challenges in capturing nonlinear patterns.
 
-Key Findings
+Key Finding: Simple baselines (e.g., last-hour prediction) often outperformed complex models in terms of mean absolute deviation (MAD), indicating challenges in generalization.
 
-1. Feature Engineering: Adding technical indicators (e.g., RSI, SMA) improved model performance but required careful selection to avoid overfitting.
-2. Hybrid Models: CNN-LSTM hybrids demonstrated superior performance in trend detection and forecasting compared to standalone models.
-3. Baselines: Simple baselines (e.g., last-hour prediction) often outperformed complex models in terms of mean absolute deviation (MAD), indicating challenges in generalization.
-4. Attention Mechanism: Integrated attention layers in CNN-LSTM models dynamically weighted features, improving the interpretation of temporal patterns.
-5. Metrics Tracking: Comprehensive tracking of MSE, MAE, R², and baseline comparison highlighted model strengths and limitations.
+## Best Model Comparisons
 
-This project lays a foundation for exploring advanced deep learning techniques in financial time series forecasting. Despite challenges in outperforming baselines, it provides valuable insights into combining feature engineering, hybrid architectures, and attention mechanisms for robust trading models.
+These models represent the best experiments for their respective architectures, showcasing the strengths and weaknesses of various approaches like RNN, LSTM, CNN, and hybrid models. LSTM_2 stands out as the best-performing LSTM model, and RNN_2 delivers impressive results among RNN-based approaches.
+
+## Model Performance Table
+
+| Model                   | MSE (USD)      | MAE (USD)      | MAD Predictions (USD) | MAD Baseline (USD) | R² Score | Notes              |
+|-------------------------|----------------|----------------|------------------------|--------------------|----------|--------------------|
+| RNN_2                  | 1,566,547.71   | 939.28         | 6,901.52              | 2,942.34           | -        | Best RNN model     |
+| LSTM_2                 | 1,194,710.50   | 829.62         | 829.62                | 284.67             | -        | Best LSTM model    |
+| CNN_1                  | 2,181,532.63   | 1,230.60       | 1,240.91              | 526.98             | 0.7620   | Best CNN model     |
+| Boruta-RNN Regression  | -              | -              | 5,662.93              | 2,802.36           | -        | Feature selection  |
+| Boruta-CNN-LSTM        | 9,033,470.00   | 2,392.57       | -                    | -                  | -0.0711  | Hybrid architecture|
+
+## Key Takeaways
+- **Best Overall Model**: LSTM_2 delivers the best performance with the lowest MSE (1,194,710.50 USD) and MAE (829.62 USD), showcasing its effectiveness in capturing temporal dependencies.
+- **RNN_2**: Strong performance among RNN models, with an MSE of 1,566,547.71 USD and reasonable MAE (939.28 USD), indicating its capability for sequential data analysis.
+- **CNN_1**: Achieves good prediction accuracy with an R² score of 0.7620 but struggles with higher MAD and MSE compared to LSTM_2.
+- **Boruta-RNN Regression**: Incorporates feature selection for better input relevance, achieving a MAD of 5,662.93 USD, though improvement over baseline remains limited.
+- **Boruta-CNN-LSTM**: High computational complexity with poor performance (MSE: 9,033,470.00 USD, MAE: 2,392.57 USD), indicating overfitting or suboptimal architecture tuning.
+
+## Summary
+This comparison highlights the strengths of LSTM-based models for Bitcoin price prediction due to their superior handling of temporal dependencies and lower error metrics. While CNN and hybrid models like Boruta-CNN-LSTM introduce innovative architectures, they often require extensive tuning and may suffer from overfitting or high computational costs. Feature selection using Boruta enhances input relevance but needs careful integration with the chosen architecture for optimal results. Despite challenges in outperforming baselines, it provides valuable insights into combining feature engineering, hybrid architectures, and attention mechanisms for robust trading models.
+
+## Personal opinion
+The experiments demonstrate the challenges in achieving robust predictive models for Bitcoin prices. Despite leveraging advanced architectures and feature selection techniques inspired by the referenced paper, the performance consistently fell short of the baseline. While the Boruta-CNN-LSTM model introduced promising innovations, its results were not as strong as anticipated. With additional time and further optimization, there may still be potential to improve its effectiveness and close the gap with the baseline.
+
+
