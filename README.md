@@ -56,6 +56,17 @@ The project uses data fetched from Kraken and focuses on creating efficient, acc
   - Reduced model complexity by eliminating irrelevant features.
   - Regression models showed improved validation loss.
   - Classification models failed to identify significant features, highlighting challenges in capturing nonlinear patterns.
+ 
+6. Hybrid Feature Engineering and CNN-LSTM (Boruta-CNN-LSTM)
+- Goal: Utilize Boruta-selected features combined with a CNN-LSTM architecture to improve prediction accuracy by integrating the most relevant inputs and leveraging hybrid deep learning methods.
+- Key Features:
+  - Two CNN layers (32, 64 filters) for feature extraction.
+  - Bidirectional LSTM layers (2 layers, 32 hidden units) for sequence modeling.
+  - Batch normalization for stability, dropout (0.1) for regularization, and LeakyReLU activation.
+  - AdamW optimizer, ReduceLROnPlateau scheduler, and gradient clipping (1.0).
+- Results:
+  - The model struggled to outperform the baseline, reflecting the complexity of integrating hybrid architectures with feature selection.
+  - Despite incorporating Boruta-selected features, the high MSE indicates a need for further optimization and evaluation.
 
 Key Finding: Simple baselines (e.g., last-hour prediction) often outperformed complex models in terms of mean absolute deviation (MAD), indicating challenges in generalization.
 
