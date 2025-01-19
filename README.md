@@ -1,4 +1,5 @@
 ### Bitcoin Trading Project: Deep Learning Models Analysis
+Andrea Baidin 588769 and Kira Bouschen 592797
 
 ## Project Overview
 A comprehensive exploration of deep learning architectures for Bitcoin price prediction, implementing various neural network models including CNN, LSTM, RNN, and hybrid architectures. The project aims to develop robust trading models for both regression (price prediction) and classification (movement direction) tasks.
